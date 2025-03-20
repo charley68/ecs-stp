@@ -1,0 +1,26 @@
+{
+  "family": "STPTask",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "executionRoleArn": "arn:aws:iam::717279690473.role/ecsTaskExecutionRole",
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "stp-container",
+      "image": "717279690473.dkr.ecr.us-east-1.amazonaws.com/stp:latest",
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "hostPort": 5000
+        }
+      ],
+      "environment": [
+        {
+          "name": "DYNAMODB_TABLE",
+          "value": "ECS_Requests"
+        }
+      ]
+    }
+  ]
+}
