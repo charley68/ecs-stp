@@ -7,7 +7,7 @@ resource "aws_ecs_service" "app_service" {
 
   network_configuration {
     subnets          = [data.terraform_remote_state.infra.outputs.private_subnet1_id, data.terraform_remote_state.infra.outputs.private_subnet2_id ]
-    security_groups  = [data.terraform_remote_state.infra.outputs.security_group_id]
+    security_groups  = [aws_security_group.sg_ecs.id]
     assign_public_ip = true
   }
 

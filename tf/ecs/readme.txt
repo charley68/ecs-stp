@@ -17,3 +17,7 @@ In here we create service or ECS specific things.  THe LB is also in here since 
 [ECS Fargate Task] — running in private subnet
 
  
+
+
+# TEST WITH ....
+curl -X POST steve-app-alb-1756778934.eu-west-2.elb.amazonaws.com/process   -d '<request><id>123</id></request>'

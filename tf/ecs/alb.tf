@@ -4,7 +4,7 @@ resource "aws_lb" "app_alb" {
   name               = "steve-app-alb"
   load_balancer_type = "application"
   subnets            = [data.terraform_remote_state.infra.outputs.public_subnet1_id, data.terraform_remote_state.infra.outputs.public_subnet2_id]
-  security_groups    = [data.terraform_remote_state.infra.outputs.security_group_id]
+  security_groups    = [aws_security_group.sg_lb.id]
 
   enable_deletion_protection = false
   idle_timeout               = 60

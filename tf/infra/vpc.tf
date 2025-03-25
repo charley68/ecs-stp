@@ -86,13 +86,17 @@ resource "aws_route_table_association" "public_assoc2" {
 
 #  THIS EXRA PART IS NECESSARY ONL IF WE ARE HSOTING INSIDE A PRIVATE SUBNET
 
-resource "aws_eip" "nat_eip" {
+resource "aws_eip" "nat_eip1" {
+  vpc = true
+}
+
+resource "aws_eip" "nat_eip2" {
   vpc = true
 }
 
 
 resource "aws_nat_gateway" "nat_gw1" {
-  allocation_id = aws_eip.nat_eip.id
+  allocation_id = aws_eip.nat_eip1.id
   subnet_id     = aws_subnet.public_subnet1.id
 
   tags = {
@@ -101,7 +105,7 @@ resource "aws_nat_gateway" "nat_gw1" {
 }
 
 resource "aws_nat_gateway" "nat_gw2" {
-  allocation_id = aws_eip.nat_eip.id
+  allocation_id = aws_eip.nat_eip2.id
   subnet_id     = aws_subnet.public_subnet2.id
 
   tags = {
