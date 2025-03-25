@@ -1,85 +1,40 @@
-python3 -m venv venv      # Create a virtual environment (if not created already)
-source venv/bin/activate  # Activate the virtual environment (Mac/Linux)
-pip install -r requirements.txt
-
-AWS_ACCOUNT="717279690473"
-APP_NAME="stp"
-
-
-# CREATE THE DOCKER IMAGE LOCALLY
-docker build -t stp .
-
-# CREATE REPOSITORY in ECR
-aws ecr create-repository --repository-name stp
-
-# LOGIN TO ECR from Docker
-aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin ${AWS_ACCOUNT}.dkr.ecr.eu-west-2.amazonaws.com
-
-# TAG THE IMAGE
-docker tag stp:latest ${AWS_ACCOUNT}.dkr.ecr.eu-west-2.amazonaws.com/${APP_NAME}:latest
-
-# PUSH THE IMAGE
-docker push ${AWS_ACCOUNT}.dkr.ecr.eu-west-2.amazonaws.com/${APP_NAME}:latest
-
-
-
-# CREATE THE INITIAL CLUSTER
-aws ecs create-cluster --cluster-name my-stp-cluster
-
-
-
-# Need to create a role that can be assumed by ECS
-aws iam create-role \
-  --role-name stpEcsTaskExecutionRole \
-  --assume-role-policy-document file://ecs-trust-policy.json
-
-
-# And give it permission to execute ECS tasks.
-aws iam attach-role-policy \
-  --role-name stpEcsTaskExecutionRole \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-
-# And have cloudwatch access
-aws iam attach-role-policy \
-  --role-name ecsTaskExecutionRole \
-  --policy-arn arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+This set of branches reates to ECS and various ways of setting it up.
+In this main branch, we just have the infra section which can be cloned and additional requirements added to tf/ecs
 
 
 
 
 
-# REGISTER THE TASK DEFINITION BLUEPRINT
-aws ecs register-task-definition --cli-input-json file://task-dev1.json
+public-no-loadbalancer
+**********************
+
+This is the easiest to setup.  It involves just setting up a public subnet and enusring we have a public IP
+with no Multi AZ or private subnets to worry about.  This is the cheapest option and easiest for DEV but not
+suitable for PROD due to lack of resilience to failure.
+
+
+private-with-loadbalancer
+*************************
+
+This is the proper way to do things if you need full failover and private subnets.  It is expensive though as requires
+at least 2 NAT gaateways  (About $30 a month + data) but gives the most flexibililty since it enables internet access
+to private subnets (Via NAT).
+
+
+private-with-vpc-endpoints
+**************************
+
+This is an altneritve to using NAT.  Instead of having a NAT gateway,  we allow VPC Endpoints which enables direct acccess to most AWS services
+without going over the internet so way save on NAT costs.  Only s3 and dynamo are free though  (Gateway Endpoints).   All other endpounts (such as SNS,SQS, Lambda, Secrets Manager, ECR etc) are INTERFACE endpoints and charged per hour + data.  Charges are about $7.20 per month per AZ.  
+
+
+So ... NAT or ENDPOINT depends how many services you require.    If you're app is only using ECR (which requires 2 endpoints - api and dkr) then you'll pay
+$7.20 per service per month per AZ.  So total of $14.40 per AZ.   Compared to NAT which is about $34 but lets you use any AWS Service.
+
+Note also,  endpoint data charges are MUCH cheaper (About 1/5).
+
+But, if you start to use a lot of EndPoints,  NAT may become cheaper.  
 
 
 
 
-To list current subnets for default VPC
- aws ec2 describe-subnets \
-  --query "Subnets[*].{ID:SubnetId,Public:MapPublicIpOnLaunch,AZ:AvailabilityZone}" \
-  --output table
-
-
-Create a SG that allows traffic on port 5000
-
-aws ec2 create-security-group \
-  --group-name ecs-stp-sg \
-  --vpc-id vpc-03defd0e6c747fd29
-
-
-aws ec2 authorize-security-group-ingress \
-  --group-name ecs-stp-sg \
-  --protocol tcp --port 5000 \
-  --source-group ecs-stp-sg
-
-
-
-aws ecs create-service --cluster   my-stp-cluster \
-  --service-name my-stp-service \
-  --task-definition my-stp-task \
-  --desired-count 1 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-0e079f13511576be2],securityGroups=[sg-02c7fa0f5f2f786a7],assignPublicIp=ENABLED}"
-
-
-curl -X POST http://ECS-PUBLIC-IP:5000/process -d '<request><id>123</id></request>'
